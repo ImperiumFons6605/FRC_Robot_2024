@@ -35,15 +35,19 @@ public final class Constants {
     public static final double kRotationalSlewRate = 2.0; // percent per second (1 = 100%)
 
     // Chassis configuration
-    public static final double kTrackWidth = Units.inchesToMeters(26.5);
+    public static final double kTrackWidth = Units.inchesToMeters(24);
     // Distance between centers of right and left wheels on robot
-    public static final double kWheelBase = Units.inchesToMeters(26.5);
+    public static final double kWheelBase = Units.inchesToMeters(24);
+
+    public static final Translation2d[] kModuleTranslations = {
+      new Translation2d(kWheelBase / 2, kTrackWidth / 2),
+      new Translation2d(kWheelBase / 2, -kTrackWidth / 2),
+      new Translation2d(-kWheelBase / 2, kTrackWidth / 2),
+      new Translation2d(-kWheelBase / 2, -kTrackWidth / 2)
+    };
     // Distance between front and back wheels on robot
     public static final SwerveDriveKinematics kDriveKinematics = new SwerveDriveKinematics(
-        new Translation2d(kWheelBase / 2, kTrackWidth / 2),
-        new Translation2d(kWheelBase / 2, -kTrackWidth / 2),
-        new Translation2d(-kWheelBase / 2, kTrackWidth / 2),
-        new Translation2d(-kWheelBase / 2, -kTrackWidth / 2));
+        kModuleTranslations);
 
     // Angular offsets of the modules relative to the chassis in radians
     public static final double kFrontLeftChassisAngularOffset = -Math.PI / 2;
@@ -52,6 +56,9 @@ public final class Constants {
     public static final double kBackRightChassisAngularOffset = Math.PI / 2;
 
     // SPARK MAX CAN IDs
+
+    public static final int kPigeonGyroID = 9;
+
     public static final int kFrontLeftDrivingCanId = 11;
     public static final int kRearLeftDrivingCanId = 13;
     public static final int kFrontRightDrivingCanId = 15;
@@ -119,6 +126,21 @@ public final class Constants {
   public static final class OIConstants {
     public static final int kDriverControllerPort = 0;
     public static final double kDriveDeadband = 0.05;
+
+    
+    public static final int kLogitechLeftYAxis = 1;
+    public static final int kLogitechLeftXAxis = 0;
+    public static final int kLogitechRightYAxis = 3;
+    public static final int kLogitechRightXAxis = 2;
+
+    public static final int kLogitechDownButton= 2;
+    public static final int kLogitechRightButton= 3;
+    public static final int kLogitechLeftButton= 1;
+    public static final int kLogitechUpButton= 4;
+    public static final int kLogitechR1= 6;
+    public static final int kLogitechL1= 5;
+    public static final int kLogitechR2= 7;
+    public static final int kLogitechL2= 8;
   }
 
   public static final class AutoConstants {
@@ -139,4 +161,6 @@ public final class Constants {
   public static final class NeoMotorConstants {
     public static final double kFreeSpeedRpm = 5676;
   }
+
+  
 }

@@ -7,14 +7,18 @@ package frc.robot.subsystems;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.wpilibj.RobotBase;
 
-import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkLowLevel.MotorType;
 import com.revrobotics.SparkAbsoluteEncoder.Type;
 import com.revrobotics.SparkPIDController;
 import com.revrobotics.AbsoluteEncoder;
+import com.revrobotics.CANSparkMax;
+import com.revrobotics.REVPhysicsSim;
 import com.revrobotics.RelativeEncoder;
 
+import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.ModuleConstants;
 
 public class MAXSwerveModule {
@@ -29,6 +33,13 @@ public class MAXSwerveModule {
 
   private double m_chassisAngularOffset = 0;
   private SwerveModuleState m_desiredState = new SwerveModuleState(0.0, new Rotation2d());
+  private double m_currentAngle;
+  private double m_lastAngle;
+  private double m_simDriveEncoderVelocity;
+  private double m_simDriveEncoderPosition;
+  private double m_simTurnAngleIncrement;
+  private double m_simAngleDifference;
+  private double m_angle;
 
   /**
    * Constructs a MAXSwerveModule and configures the driving and turning motor,
@@ -108,6 +119,11 @@ public class MAXSwerveModule {
     m_chassisAngularOffset = chassisAngularOffset;
     m_desiredState.angle = new Rotation2d(m_turningEncoder.getPosition());
     m_drivingEncoder.setPosition(0);
+
+    if(RobotBase.isSimulation()){
+      REVPhysicsSim.getInstance().addSparkMax(m_drivingSparkMax, DCMotor.getNEO(1));
+      REVPhysicsSim.getInstance().addSparkMax(m_turningSparkMax, DCMotor.getNEO(1));
+    }
   }
 
   /**
@@ -155,10 +171,74 @@ public class MAXSwerveModule {
     m_turningPIDController.setReference(optimizedDesiredState.angle.getRadians(), CANSparkMax.ControlType.kPosition);
 
     m_desiredState = desiredState;
+
+    m_angle = (Math.abs(desiredState.speedMetersPerSecond) <= (DriveConstants.kMaxSpeedMetersPerSecond * 0.01))
+        ? m_lastAngle
+        : desiredState.angle.getDegrees();
+
+    if (RobotBase.isSimulation()) {
+      simUpdateDrivePosition(desiredState);
+      simTurnPosition(m_angle);
+      m_currentAngle = m_angle;
+    }
+
+
+    m_lastAngle = m_currentAngle;
   }
 
   /** Zeroes all the SwerveModule encoders. */
   public void resetEncoders() {
     m_drivingEncoder.setPosition(0);
   }
+
+  private void simUpdateDrivePosition(SwerveModuleState state) {
+    m_simDriveEncoderVelocity = state.speedMetersPerSecond;
+    double distancePer20Ms = m_simDriveEncoderVelocity / 60.0;
+
+    m_simDriveEncoderPosition += distancePer20Ms;
+  }
+  private void simTurnPosition(double angle) {
+    if (angle != m_currentAngle && m_simTurnAngleIncrement == 0) {
+      m_simAngleDifference = angle - m_currentAngle;
+      m_simTurnAngleIncrement = m_simAngleDifference / 20.0;// 10*20ms = .2 sec move time
+    }
+
+    if (m_simTurnAngleIncrement != 0) {
+      m_currentAngle += m_simTurnAngleIncrement;
+
+      if ((Math.abs(angle - m_currentAngle)) < .1) {
+        m_currentAngle = angle;
+        m_simTurnAngleIncrement = 0;
+      }
+    }
+  }
+
+  public double getHeadingDegrees() {
+    if(RobotBase.isReal()) {
+      return m_turningEncoder.getPosition();
+    }else{
+      return m_currentAngle;
+    }
+  }
+
+  public Rotation2d getHeadingRotation2d() {
+    return Rotation2d.fromDegrees(getHeadingDegrees());
+  }
+
+  public double getDriveMeters() {
+    if(RobotBase.isReal()) {
+      return m_drivingEncoder.getPosition();
+    }else{
+      return m_simDriveEncoderPosition;
+    }
+  }
+  public double getDriveMetersPerSecond() {
+    if(RobotBase.isReal()){
+      return m_drivingEncoder.getVelocity();
+    }else{
+      return m_simDriveEncoderVelocity;
+    }
+  }
+
+  
 }
