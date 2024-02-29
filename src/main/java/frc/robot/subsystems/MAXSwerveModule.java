@@ -177,8 +177,8 @@ public class MAXSwerveModule {
         : desiredState.angle.getDegrees();
 
     if (RobotBase.isSimulation()) {
-      simUpdateDrivePosition(desiredState);
-      simTurnPosition(m_angle);
+      //simUpdateDrivePosition(desiredState);
+      //simTurnPosition(m_angle);
       m_currentAngle = m_angle;
     }
 
