@@ -74,7 +74,7 @@ public class DriveSubsystem extends SubsystemBase{
   public DriveSubsystem() {
 
     
-    pigeon = new Pigeon2(4);
+    pigeon = new Pigeon2(DriveConstants.kPigeonGyroID);
 
     /* Configure Pigeon2 */
     var toApply = new Pigeon2Configuration();
