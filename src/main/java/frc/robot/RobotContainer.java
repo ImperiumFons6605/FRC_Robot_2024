@@ -78,7 +78,6 @@ public class RobotContainer {
 
 
 
-    SmartDashboard.putData("Auto Chooser", autoChooser);
   }
 
  
@@ -105,5 +104,7 @@ public class RobotContainer {
 
 
 
-
+  public void periodic(){
+    SmartDashboard.putData("Auto Chooser", autoChooser);
+  }
 }

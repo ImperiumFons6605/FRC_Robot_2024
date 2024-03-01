@@ -4,9 +4,15 @@
 
 package frc.robot.subsystems;
 
+import org.littletonrobotics.junction.Logger;
+
 import com.ctre.phoenix6.configs.Pigeon2Configuration;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.ctre.phoenix6.unmanaged.Unmanaged;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
+import com.pathplanner.lib.util.PIDConstants;
+import com.pathplanner.lib.util.ReplanningConfig;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -18,19 +24,21 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.util.WPIUtilJNI;
-import edu.wpi.first.util.sendable.Sendable;
+
 import edu.wpi.first.util.sendable.SendableBuilder;
-import edu.wpi.first.wpilibj.ADIS16470_IMU;
-import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.ADIS16470_IMU.IMUAxis;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.simulation.FieldSim;
 import frc.utils.SwerveUtils;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
+
 public class DriveSubsystem extends SubsystemBase{
   // Create MAXSwerveModules
+
+
+  
   private final MAXSwerveModule m_frontLeft = new MAXSwerveModule(
       DriveConstants.kFrontLeftDrivingCanId,
       DriveConstants.kFrontLeftTurningCanId,
@@ -72,8 +80,42 @@ public class DriveSubsystem extends SubsystemBase{
 
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
-
     
+      
+  
+    // All other subsystem initialization
+    // ...
+
+    // Configure AutoBuilder last
+    AutoBuilder.configureHolonomic(
+            this::getPose, // Robot pose supplier
+            this::resetOdometry, // Method to reset odometry (will be called if your auto has a starting pose)
+            this::getRobotSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
+            this::driveRobotRelative, // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds
+            new HolonomicPathFollowerConfig( // HolonomicPathFollowerConfig, this should likely live in your Constants class
+                    new PIDConstants(5.0, 0.0, 0.0), // Translation PID constants
+                    new PIDConstants(5.0, 0.0, 0.0), // Rotation PID constants
+                    4.5, // Max module speed, in m/s
+                    0.4, // Drive base radius in meters. Distance from robot center to furthest module.
+                    new ReplanningConfig() // Default path replanning config. See the API for the options here
+            ),
+            () -> {
+              // Boolean supplier that controls when the path will be mirrored for the red alliance
+              // This will flip the path being followed to the red side of the field.
+              // THE ORIGIN WILL REMAIN ON THE BLUE SIDE
+
+              var alliance = DriverStation.getAlliance();
+              if (alliance.isPresent()) {
+                return alliance.get() == DriverStation.Alliance.Red;
+              }
+              return false;
+            },
+            this // Reference to this subsystem to set requirements
+    );
+
+
+  
+
     pigeon = new Pigeon2(DriveConstants.kPigeonGyroID);
 
     /* Configure Pigeon2 */
@@ -97,6 +139,9 @@ public class DriveSubsystem extends SubsystemBase{
           m_rearLeft.getPosition(),
           m_rearRight.getPosition()
       });
+
+      //Logger.recordOutput("MyStates", getModuleStates());
+      //Logger.recordOutput("MyPose2D", getPose());
   }
 
   @Override
@@ -111,7 +156,7 @@ public class DriveSubsystem extends SubsystemBase{
             m_rearRight.getPosition()
         });
 
-    SmartDashboard.putData(pigeon);
+    sendTelemetry();
   }
 
   /**
@@ -150,7 +195,7 @@ public class DriveSubsystem extends SubsystemBase{
    *                      field.
    * @param rateLimit     Whether to enable rate limiting for smoother control.
    */
-  public void drive(double xSpeed, double ySpeed, double rot, boolean fieldRelative, boolean rateLimit) {
+  public void drive (double xSpeed, double ySpeed, double rot, boolean fieldRelative, boolean rateLimit) {
     
     double xSpeedCommanded;
     double ySpeedCommanded;
@@ -230,6 +275,14 @@ public class DriveSubsystem extends SubsystemBase{
     m_rearRight.setDesiredState(new SwerveModuleState(0, Rotation2d.fromDegrees(45)));
   }
 
+  public void driveRobotRelative(ChassisSpeeds speeds){
+    drive(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond, false, false);
+  }
+
+  public ChassisSpeeds getRobotSpeeds(){
+    return DriveConstants.kDriveKinematics.toChassisSpeeds(getModuleStates());
+  }
+
   /**
    * Sets the swerve ModuleStates.
    *
@@ -298,17 +351,11 @@ public class DriveSubsystem extends SubsystemBase{
   }
 
 
-  @Override
-  public void initSendable(SendableBuilder builder) {
-    builder.setSmartDashboardType("Motor Controller");
-    builder.setActuator(true);
-    builder.addDoubleProperty("gyro", this::getHeadingDegrees, null);
-  }
 
   public MAXSwerveModule[] getModules() {
       return SwerveModules;
   }
-
+  
   @Override
   public void simulationPeriodic() {
 
@@ -321,5 +368,18 @@ public class DriveSubsystem extends SubsystemBase{
     Unmanaged.feedEnable(20);
     pigeon.getSimState().setRawYaw (-Units.radiansToDegrees(m_simYaw));
   }
+
+  public void sendTelemetry(){
+    SmartDashboard.putData(pigeon);
+    int i = 0;
+    for(MAXSwerveModule module: SwerveModules){
+
+      SmartDashboard.putNumber("angle " + i, module.getPosition().angle.getDegrees());
+      SmartDashboard.putNumber("pos " + i, module.getPosition().distanceMeters);
+      i++;
+    }
+  }
+
+
   
 }
