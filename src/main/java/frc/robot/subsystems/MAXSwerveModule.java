@@ -25,6 +25,9 @@ public class MAXSwerveModule {
   private final CANSparkMax m_drivingSparkMax;
   private final CANSparkMax m_turningSparkMax;
 
+
+  
+
   private final RelativeEncoder m_drivingEncoder;
   private final AbsoluteEncoder m_turningEncoder;
 
@@ -177,8 +180,8 @@ public class MAXSwerveModule {
         : desiredState.angle.getDegrees();
 
     if (RobotBase.isSimulation()) {
-      //simUpdateDrivePosition(desiredState);
-      //simTurnPosition(m_angle);
+      simUpdateDrivePosition(desiredState);
+      simTurnPosition(m_angle);
       m_currentAngle = m_angle;
     }
 
