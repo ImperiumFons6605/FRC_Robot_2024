@@ -140,6 +140,8 @@ public class DriveSubsystem extends SubsystemBase{
           m_rearRight.getPosition()
       });
 
+      pigeon.reset();
+
       //Logger.recordOutput("MyStates", getModuleStates());
       //Logger.recordOutput("MyPose2D", getPose());
   }
@@ -148,7 +150,7 @@ public class DriveSubsystem extends SubsystemBase{
   public void periodic() {
     // Update the odometry in the periodic block
     m_odometry.update(
-        new Rotation2d(getHeadingDegrees()),
+        getHeadingRotation2d(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
             m_frontRight.getPosition(),
@@ -175,7 +177,7 @@ public class DriveSubsystem extends SubsystemBase{
    */
   public void resetOdometry(Pose2d pose) {
     m_odometry.resetPosition(
-        new Rotation2d(getHeadingDegrees()),
+        getHeadingRotation2d(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
             m_frontRight.getPosition(),
@@ -255,7 +257,7 @@ public class DriveSubsystem extends SubsystemBase{
 
     SwerveModuleState[] swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(
         fieldRelative
-            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, new Rotation2d(getHeadingDegrees()))
+            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, getHeadingRotation2d())
             : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered));
     SwerveDriveKinematics.desaturateWheelSpeeds(
         swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
@@ -334,11 +336,12 @@ public class DriveSubsystem extends SubsystemBase{
    * @return the robot's heading in degrees, from -180 to 180
    */
   public double getHeadingDegrees() {
-    return Math.IEEEremainder(pigeon.getRotation2d().getDegrees(), 360);
+    return Math.IEEEremainder(pigeon.getYaw().asSupplier().get(), 360) ;
+    //return pigeon.getRotation2d().getDegrees();
   }
 
   public Rotation2d getHeadingRotation2d() {
-    return new Rotation2d(getHeadingDegrees());
+    return new Rotation2d(Units.degreesToRadians(getHeadingDegrees()));
   }
 
   /**
@@ -371,6 +374,7 @@ public class DriveSubsystem extends SubsystemBase{
 
   public void sendTelemetry(){
     SmartDashboard.putData(pigeon);
+    SmartDashboard.putNumber("pigeonAngle", getHeadingRotation2d().getDegrees());
     int i = 0;
     for(MAXSwerveModule module: SwerveModules){
 
@@ -378,6 +382,10 @@ public class DriveSubsystem extends SubsystemBase{
       SmartDashboard.putNumber("pos " + i, module.getPosition().distanceMeters);
       i++;
     }
+
+    SmartDashboard.putNumber("PoseX", getPose().getX());
+    SmartDashboard.putNumber("PoseY", getPose().getY());
+    SmartDashboard.putNumber("PoseTheta", getPose().getRotation().getDegrees());
   }
 
 

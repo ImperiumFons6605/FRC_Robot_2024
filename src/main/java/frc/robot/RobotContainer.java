@@ -15,23 +15,26 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.OIConstants;
 import frc.robot.subsystems.DriveSubsystem; 
 import edu.wpi.first.wpilibj2.command.Command;
-
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
-
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
-
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 
 import com.pathplanner.lib.commands.PathPlannerAuto;
 import com.pathplanner.lib.util.PathPlannerLogging;
+import com.revrobotics.CANSparkMax;
+import com.revrobotics.CANSparkLowLevel.MotorType;
 
 public class RobotContainer {
   
   private static final DriveSubsystem m_robotDrive = new DriveSubsystem();
 
   
-  XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
+  CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerPort);
+  CANSparkMax m_intake = new CANSparkMax(11, MotorType.kBrushless);
 
  private final SendableChooser<Command> autoChooser = AutoBuilder.buildAutoChooser();
 
@@ -39,9 +42,9 @@ public class RobotContainer {
 
   public RobotContainer() {
 
-    autoChooser.addOption("straightTest", new PathPlannerAuto("FULLFront"));
-    autoChooser.addOption("rightTest", new PathPlannerAuto("FULLRight"));
-    autoChooser.addOption("90degreeTest", new PathPlannerAuto("rotation 90"));
+    autoChooser.addOption("straightTest", new PathPlannerAuto("straightAuto"));
+    //autoChooser.addOption("strafeTest", new PathPlannerAuto("strafeAuto"));
+    //autoChooser.addOption("turnTest", new PathPlannerAuto("turnAuto"));
      
             field = new Field2d();
         SmartDashboard.putData("Field", field);
@@ -82,10 +85,11 @@ public class RobotContainer {
 
  
   private void configureButtonBindings() {
-    new JoystickButton(m_driverController, Button.kR1.value)
-        .whileTrue(new RunCommand(
-            () -> m_robotDrive.setX(),
-            m_robotDrive));
+    m_driverController.a().onTrue(new InstantCommand(() -> m_robotDrive.setX()));
+     m_driverController.x().onTrue(new InstantCommand(() -> m_robotDrive.zeroHeading()));
+    //m_driverController.leftTrigger().onTrue(new InstantCommand(() -> m_intake.set(0.3)));
+    m_driverController.rightTrigger().onTrue(new InstantCommand(() -> m_intake.set(-0.5)));
+    m_driverController.rightTrigger().onFalse(new InstantCommand(() -> m_intake.set(0)));
 
   }
 
@@ -105,6 +109,14 @@ public class RobotContainer {
 
 
   public void periodic(){
+    field.setRobotPose(m_robotDrive.getPose());
+    SmartDashboard.putData(field);
     SmartDashboard.putData("Auto Chooser", autoChooser);
+  }
+
+  public double pow(double input){
+
+    double value = input * input;
+    return (input < 0) ? -value : value;
   }
 }
