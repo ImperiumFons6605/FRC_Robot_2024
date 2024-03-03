@@ -4,13 +4,16 @@
 
 package frc.robot.subsystems;
 
+
 import org.littletonrobotics.junction.AutoLogOutput;
+
 import org.littletonrobotics.junction.Logger;
 
 import com.ctre.phoenix6.configs.Pigeon2Configuration;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.ctre.phoenix6.unmanaged.Unmanaged;
 import com.pathplanner.lib.auto.AutoBuilder;
+
 import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PIDConstants;
@@ -18,6 +21,7 @@ import com.pathplanner.lib.util.PathPlannerLogging;
 import com.pathplanner.lib.util.ReplanningConfig;
 
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
+
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -31,8 +35,10 @@ import edu.wpi.first.util.WPIUtilJNI;
 
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.DriverStation;
+
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.simulation.FieldSim;
@@ -121,6 +127,7 @@ public class DriveSubsystem extends SubsystemBase{
             this // Reference to this subsystem to set requirements
     );
 
+
     Pathfinding.setPathfinder(new LocalADStarAK());
     PathPlannerLogging.setLogActivePathCallback(
         (activePath) -> {
@@ -151,6 +158,7 @@ public class DriveSubsystem extends SubsystemBase{
             // Do whatever you want with the poses here
             field.getObject("path").setPoses(poses);
         });
+
     pigeon = new Pigeon2(DriveConstants.kPigeonGyroID);
 
     /* Configure Pigeon2 */
@@ -176,6 +184,7 @@ public class DriveSubsystem extends SubsystemBase{
       }, 
       new Pose2d());
 
+
       pigeon.reset();
 
       //Logger.recordOutput("MyStates", getModuleStates());
@@ -191,6 +200,7 @@ public class DriveSubsystem extends SubsystemBase{
     }
     // Update the odometry in the periodic block
     m_poseEstimator.update(
+
         getHeadingRotation2d(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
@@ -200,6 +210,7 @@ public class DriveSubsystem extends SubsystemBase{
         });
 
     sendTelemetry();
+
 
   }
 

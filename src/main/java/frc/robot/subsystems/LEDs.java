@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class LEDs extends SubsystemBase{
+
     Spark ledSpark;
 
     
@@ -17,7 +18,9 @@ public class LEDs extends SubsystemBase{
     }
 
     public Command setRainbow (){
+
         return Commands.runOnce(()->ledSpark.set(-0.97), this);
+
     }
     
     public Command INcargo(){

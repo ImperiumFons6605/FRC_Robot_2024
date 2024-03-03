@@ -64,9 +64,11 @@ public class RobotContainer {
 
   public RobotContainer() {
 
+
     //autoChooser.addOption("straightTest", new PathPlannerAuto("straightAuto"));
     //autoChooser.addOption("strafeTest", new PathPlannerAuto("strafeAuto"));
     //autoChooser.addOption("turnTest", new PathPlannerAuto("turnAuto"));
+
 
 
     configureButtonBindings();
@@ -80,13 +82,12 @@ public class RobotContainer {
                 true, false),
             m_robotDrive));
 
-    //m_leds.setDefaultCommand(m_leds.setRainbow());
-  }
 
  
   private void configureButtonBindings() {
     m_driverController.a().onTrue(new InstantCommand(() -> m_robotDrive.setX()));
      m_driverController.x().onTrue(new InstantCommand(() -> m_robotDrive.zeroHeading()));
+
     //m_driverController.leftTrigger().onTrue(new AlignApriltag(m_vision, m_robotDrive, m_targetToTrack));
     m_driverController.rightTrigger().whileTrue(new GroundGrab(m_intake, m_indexer, m_leds));
     //m_driverController.rightTrigger().onTrue(new InstantCommand(() -> intake.set(-0.7)));
@@ -97,6 +98,7 @@ public class RobotContainer {
     //m_driverController.povRight().onTrue(new InstantCommand(() -> m_targetToTrack = 4));
     //m_driverController.povLeft().onTrue(new InstantCommand(() -> m_targetToTrack = 1));
     //m_driverController.povDown().onTrue(new InstantCommand(() -> m_targetToTrack = 0));
+
 
   }
 

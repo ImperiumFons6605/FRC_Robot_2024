@@ -38,6 +38,7 @@ public class Robot extends LoggedRobot {
    */
   @Override
   public void robotInit() {
+
     //Logger.recordMetadata("ProjectName", "MyProject"); // Set a metadata value
 
     if (isReal()) {
@@ -56,8 +57,10 @@ public class Robot extends LoggedRobot {
     // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
     // autonomous chooser on the dashboard.
     m_robotContainer = new RobotContainer();
+
     //DataLogManager.start();
     //DriverStation.startDataLog(DataLogManager.getLog());
+
 
 
     // Record both DS control and joystick data
