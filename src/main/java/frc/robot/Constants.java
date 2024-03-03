@@ -6,7 +6,11 @@ package frc.robot;
 
 import com.revrobotics.CANSparkBase.IdleMode;
 
+import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
@@ -27,7 +31,7 @@ public final class Constants {
   public static final class DriveConstants {
     // Driving Parameters - Note that these are not the maximum capable speeds of
     // the robot, rather the allowed maximum speeds
-    public static final double kMaxSpeedMetersPerSecond = 4.8;
+    public static final double kMaxSpeedMetersPerSecond = 5.2;
     public static final double kMaxAngularSpeed = 2 * Math.PI; // radians per second
 
     public static final double kDirectionSlewRate = 1.2; // radians per second
@@ -125,6 +129,7 @@ public final class Constants {
 
   public static final class OIConstants {
     public static final int kDriverControllerPort = 0;
+    public static final int kSubsytemsControllerPort = 0;
     public static final double kDriveDeadband = 0.05;
 
     
@@ -188,5 +193,43 @@ public final class Constants {
     public static final double kMaxAcceleratioCmperSecSquared = 100;
     
   }
-  
+
+  public static final class IntakeConstants{
+    public static final int kIntakeID = 11;
+    public static final double kIntakePot = 0.9;
+  }
+
+  public static final class IndexerConstants{
+    public static final int kIndexerID = 12;
+    public static final double kIndexerPot = 0.4;
+  }
+
+  public static final class VisionConstants{
+
+    public static boolean kPoseEstimatorEnabled = false;
+    public static final Transform3d kTransformRobotToCam = new Transform3d(
+      new Translation3d(0.17, -0.21, 0.215),
+      new Rotation3d(
+              Units.degreesToRadians(90), 0,
+              0)); // Cam mounted facing forward, half a meter forward of center, half a meter up
+// from center.
+    public static final String kCameraName = "6605Camera";
+
+    public static final double kXControllerP = 0.13;
+    public static final double kXControllerD = 0;
+    public static final double kYControllerP = 0.21;
+    public static final double kYControllerD = 0;
+    public static final double kOmegaControllerP = 0.22;
+    public static final double kOmegaControllerD = 0;
+
+    public static final double kMaxXVelocity = 2;
+    public static final double kMaxXAcceleration = 3;
+
+    public static final double kMaxYVelocity = 2;
+    public static final double kMaxYAcceleration = 3;
+
+    public static final double kMaxOmegaVelocity = 1;
+    public static final double kMaxOmegaAcceleration = 1.5;
+  }
+
 }

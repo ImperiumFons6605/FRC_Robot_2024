@@ -24,8 +24,6 @@ public class FieldSim {
     m_swerveDrive = swerveDrive;
   }
 
-  public void initSim() {}
-
   public Field2d getField2d() {
     return m_field2d;
   }
@@ -52,11 +50,8 @@ public class FieldSim {
 
   public void periodic() {
     updateRobotPoses();
-
-    //if (RobotBase.isSimulation()) simulationPeriodic();
-
     SmartDashboard.putData("Field2d", m_field2d);
   }
 
-  //public void simulationPeriodic() {}
+  
 }

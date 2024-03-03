@@ -4,15 +4,23 @@
 
 package frc.robot.subsystems;
 
+
+import org.littletonrobotics.junction.AutoLogOutput;
+
 import org.littletonrobotics.junction.Logger;
 
 import com.ctre.phoenix6.configs.Pigeon2Configuration;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.ctre.phoenix6.unmanaged.Unmanaged;
 import com.pathplanner.lib.auto.AutoBuilder;
+
+import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PIDConstants;
+import com.pathplanner.lib.util.PathPlannerLogging;
 import com.pathplanner.lib.util.ReplanningConfig;
+
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -27,9 +35,14 @@ import edu.wpi.first.util.WPIUtilJNI;
 
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.DriverStation;
+
+import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.simulation.FieldSim;
+import frc.utils.LocalADStarAK;
 import frc.utils.SwerveUtils;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -74,9 +87,10 @@ public class DriveSubsystem extends SubsystemBase{
   private double m_prevTime = WPIUtilJNI.now() * 1e-6;
 
   // Odometry class for tracking robot pose
-  SwerveDriveOdometry m_odometry;
+  SwerveDrivePoseEstimator m_poseEstimator;
 
   private final FieldSim m_field = new FieldSim(this);
+  private final Field2d field = new Field2d();
 
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
@@ -114,7 +128,36 @@ public class DriveSubsystem extends SubsystemBase{
     );
 
 
-  
+    Pathfinding.setPathfinder(new LocalADStarAK());
+    PathPlannerLogging.setLogActivePathCallback(
+        (activePath) -> {
+          Logger.recordOutput(
+              "Odometry/Trajectory", activePath.toArray(new Pose2d[activePath.size()]));
+        });
+    PathPlannerLogging.setLogTargetPoseCallback(
+        (targetPose) -> {
+          Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
+        });
+
+        SmartDashboard.putData("Field", field);
+
+        // Logging callback for current robot pose
+        PathPlannerLogging.setLogCurrentPoseCallback((pose) -> {
+            // Do whatever you want with the pose here
+            field.setRobotPose(pose);
+        });
+
+        // Logging callback for target robot pose
+        PathPlannerLogging.setLogTargetPoseCallback((pose) -> {
+            // Do whatever you want with the pose here
+            field.getObject("target pose").setPose(pose);
+        });
+
+        // Logging callback for the active path, this is sent as a list of poses
+        PathPlannerLogging.setLogActivePathCallback((poses) -> {
+            // Do whatever you want with the poses here
+            field.getObject("path").setPoses(poses);
+        });
 
     pigeon = new Pigeon2(DriveConstants.kPigeonGyroID);
 
@@ -130,15 +173,17 @@ public class DriveSubsystem extends SubsystemBase{
     pigeon.getGravityVectorZ().setUpdateFrequency(100);
 
 
-    m_odometry = new SwerveDriveOdometry(
+    m_poseEstimator = new SwerveDrivePoseEstimator(
       DriveConstants.kDriveKinematics,
-      Rotation2d.fromDegrees(pigeon.getAngle()),
+      getHeadingRotation2d(),
       new SwerveModulePosition[] {
           m_frontLeft.getPosition(),
           m_frontRight.getPosition(),
           m_rearLeft.getPosition(),
           m_rearRight.getPosition()
-      });
+      }, 
+      new Pose2d());
+
 
       pigeon.reset();
 
@@ -148,8 +193,14 @@ public class DriveSubsystem extends SubsystemBase{
 
   @Override
   public void periodic() {
+    // Log empty setpoint states when disabled
+    if (DriverStation.isDisabled()) {
+      Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleState[] {});
+      Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
+    }
     // Update the odometry in the periodic block
-    m_odometry.update(
+    m_poseEstimator.update(
+
         getHeadingRotation2d(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
@@ -159,15 +210,8 @@ public class DriveSubsystem extends SubsystemBase{
         });
 
     sendTelemetry();
-  }
 
-  /**
-   * Returns the currently-estimated pose of the robot.
-   *
-   * @return The pose.
-   */
-  public Pose2d getPose() {
-    return m_odometry.getPoseMeters();
+
   }
 
   /**
@@ -176,7 +220,7 @@ public class DriveSubsystem extends SubsystemBase{
    * @param pose The pose to which to set the odometry.
    */
   public void resetOdometry(Pose2d pose) {
-    m_odometry.resetPosition(
+    m_poseEstimator.resetPosition(
         getHeadingRotation2d(),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
@@ -186,6 +230,32 @@ public class DriveSubsystem extends SubsystemBase{
         },
         pose);
   }
+
+   /**
+   * Returns the currently-estimated pose of the robot.
+   *
+   * @return The pose.
+   */
+  @AutoLogOutput(key = "Odometry/Robot")
+  public Pose2d getPose() {
+    return m_poseEstimator.getEstimatedPosition();
+  }
+
+  public void setPose(Pose2d pose) {
+    m_poseEstimator.resetPosition(getHeadingRotation2d(), getModulePositions(), pose);
+  }
+
+  /**
+   * Adds a vision measurement to the pose estimator.
+   *
+   * @param visionPose The pose of the robot as measured by the vision camera.
+   * @param timestamp The timestamp of the vision measurement in seconds.
+   */
+  public void addVisionMeasurement(Pose2d visionPose, double timestamp) {
+    field.getObject("VisionRobotPose").setPose(visionPose);
+    m_poseEstimator.addVisionMeasurement(visionPose, timestamp);
+  }
+
 
   /**
    * Method to drive the robot using joystick info.
@@ -299,6 +369,8 @@ public class DriveSubsystem extends SubsystemBase{
     m_rearRight.setDesiredState(desiredStates[3]);
   }
 
+  /** Returns the module states (turn angles and drive velocities) for all of the modules. */
+  @AutoLogOutput(key = "SwerveStates/Measured")
   public SwerveModuleState[] getModuleStates() {
     return new SwerveModuleState[] {
       SwerveModules[0].getState(),
@@ -307,6 +379,8 @@ public class DriveSubsystem extends SubsystemBase{
       SwerveModules[3].getState()
     };
   }
+
+  
   public SwerveModulePosition[] getModulePositions() {
     return new SwerveModulePosition[] { 
       SwerveModules[0].getPosition(),
@@ -364,28 +438,30 @@ public class DriveSubsystem extends SubsystemBase{
 
     m_field.periodic();
 
-
-    ChassisSpeeds chassisSpeed = DriveConstants.kDriveKinematics.toChassisSpeeds(getModuleStates());
-    double m_simYaw = chassisSpeed.omegaRadiansPerSecond * 0.02;
+    double m_simYaw = getRobotSpeeds().omegaRadiansPerSecond * 0.02;
 
     Unmanaged.feedEnable(20);
-    pigeon.getSimState().setRawYaw (-Units.radiansToDegrees(m_simYaw));
+    pigeon.getSimState().setRawYaw (Units.radiansToDegrees(m_simYaw));
   }
 
   public void sendTelemetry(){
-    SmartDashboard.putData(pigeon);
-    SmartDashboard.putNumber("pigeonAngle", getHeadingRotation2d().getDegrees());
-    int i = 0;
-    for(MAXSwerveModule module: SwerveModules){
+      SmartDashboard.putData(pigeon);
+      SmartDashboard.putNumber("pigeonAngle", getHeadingRotation2d().getDegrees());
+      int i = 0;
+      for(MAXSwerveModule module: SwerveModules){
 
-      SmartDashboard.putNumber("angle " + i, module.getPosition().angle.getDegrees());
-      SmartDashboard.putNumber("pos " + i, module.getPosition().distanceMeters);
-      i++;
-    }
+        SmartDashboard.putNumber("angle " + i, module.getPosition().angle.getDegrees());
+        SmartDashboard.putNumber("pos " + i, module.getPosition().distanceMeters);
+        i++;
+      }
 
-    SmartDashboard.putNumber("PoseX", getPose().getX());
-    SmartDashboard.putNumber("PoseY", getPose().getY());
-    SmartDashboard.putNumber("PoseTheta", getPose().getRotation().getDegrees());
+      SmartDashboard.putNumber("PoseX", getPose().getX());
+      SmartDashboard.putNumber("PoseY", getPose().getY());
+      SmartDashboard.putNumber("PoseTheta", getPose().getRotation().getDegrees());
+
+      field.setRobotPose(getPose());
+      SmartDashboard.putData(field);
+    
   }
 
 
