@@ -1,6 +1,11 @@
 {
   "HALProvider": {
     "Other Devices": {
+      "Pigeon 2 (v6)[10]": {
+        "header": {
+          "open": true
+        }
+      },
       "SPARK MAX [10]": {
         "header": {
           "open": true
@@ -16,11 +21,20 @@
   "NTProvider": {
     "types": {
       "/FMSInfo": "FMSInfo",
+      "/SmartDashboard/Auto Chooser": "String Chooser",
+      "/SmartDashboard/Field": "Field2d",
       "/SmartDashboard/Field2d": "Field2d",
-      "/SmartDashboard/Pigeon 2 (Pro) [4]": "Gyro"
+      "/SmartDashboard/Pigeon 2 (Pro) [4]": "Gyro",
+      "/SmartDashboard/Pigeon 2 (v6) [10]": "Gyro"
     },
     "windows": {
       "/SmartDashboard/Field2d": {
+        "bottom": 1476,
+        "height": 8.210550308227539,
+        "left": 150,
+        "right": 2961,
+        "top": 79,
+        "width": 16.541748046875,
         "window": {
           "visible": true
         }
@@ -43,7 +57,12 @@
     }
   },
   "NetworkTables Info": {
-    "Clients": {
+    "Server": {
+      "Publishers": {
+        "open": true
+      }
+    },
+    "shuffleboard@1": {
       "open": true
     },
     "visible": true
