@@ -14,7 +14,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.DriveSubsystem;
 import frc.robot.subsystems.Vision;
 
-public class TurnToAngle extends Command{
+public class TurnToAprilTag extends Command{
     private Vision visionSubsystem;
     private DriveSubsystem drive;
     private int idToTrack;
@@ -29,7 +29,7 @@ public class TurnToAngle extends Command{
     private PIDController thetaController = new PIDController(0.1, 0, 0);
 
 
-    public TurnToAngle(Vision vision, DriveSubsystem driveP, DoubleSupplier x, DoubleSupplier y){
+    public TurnToAprilTag(Vision vision, DriveSubsystem driveP, DoubleSupplier x, DoubleSupplier y){
         visionSubsystem = vision;
         drive = driveP;
         xSupplier = x;
@@ -47,7 +47,6 @@ public class TurnToAngle extends Command{
     @Override
     public void execute() {
         if(visionSubsystem.getCamera().getLatestResult().hasTargets()){
-
             double thetaValue = -thetaController.calculate(visionSubsystem.getCamera().getLatestResult().getBestTarget().getYaw(), 0);
             drive.driveRobotRelative(new ChassisSpeeds(xSupplier.getAsDouble(), ySupplier.getAsDouble(), thetaValue));
         } else {

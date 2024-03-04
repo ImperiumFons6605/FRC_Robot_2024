@@ -1,7 +1,7 @@
 package frc.robot.commands;
 
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.WaitCommand;
+import frc.robot.Constants.IndexerConstants;
 import frc.robot.subsystems.Indexer;
 import frc.robot.subsystems.Intake;
 import frc.robot.subsystems.LEDs;
@@ -22,7 +22,7 @@ public class GroundGrab extends Command{
     @Override
     public void execute() {
         m_Intake.run();
-        m_indexer.run();
+        m_indexer.run(IndexerConstants.kIndexerGrabPot);
         m_leds.INcargo();
     }
 

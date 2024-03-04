@@ -31,7 +31,7 @@ public final class Constants {
   public static final class DriveConstants {
     // Driving Parameters - Note that these are not the maximum capable speeds of
     // the robot, rather the allowed maximum speeds
-    public static final double kMaxSpeedMetersPerSecond = 5.2;
+    public static final double kMaxSpeedMetersPerSecond = 3;
     public static final double kMaxAngularSpeed = 2 * Math.PI; // radians per second
 
     public static final double kDirectionSlewRate = 1.2; // radians per second
@@ -113,7 +113,7 @@ public final class Constants {
     public static final double kDrivingMinOutput = -1;
     public static final double kDrivingMaxOutput = 1;
 
-    public static final double kTurningP = 1;
+    public static final double kTurningP = 0.6;
     public static final double kTurningI = 0;
     public static final double kTurningD = 0;
     public static final double kTurningFF = 0;
@@ -201,7 +201,38 @@ public final class Constants {
 
   public static final class IndexerConstants{
     public static final int kIndexerID = 12;
-    public static final double kIndexerPot = 0.4;
+    public static final double kIndexerGrabPot = 0.7;
+    public static final double kIndexerShootPot = 1;
+  }
+
+  public static final class ShooterConstants{
+    public static final int kLeftID = 15;
+    public static final int kRightID = 16;
+
+    public static final double kShooterP = 0.4;
+    public static final double kShooterI = 0.0;
+    public static final double kShooterD = 0.0;
+
+    public static final double ShooterKS = 0;
+    public static final double ShooterKV = 0.1;
+    public static final double ShooterKA = 0.01;
+
+
+
+    public static final int kAngleID = 17;
+
+    public static final double kAngleGearbox = 4.0;
+
+    public static final double kAngleEncoderPositionFactor = 2* Math.PI;
+
+    public static final double kAngleP = 0.4;
+    public static final double kAngleI = 0.0;
+    public static final double kAngleD = 0.0;
+
+    public static final double angleKS = 0.0;
+    public static final double anglekG = 0.36;
+    public static final double angleKV = 0.1;
+    
   }
 
   public static final class VisionConstants{

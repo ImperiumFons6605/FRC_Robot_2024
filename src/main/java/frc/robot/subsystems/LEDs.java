@@ -21,14 +21,14 @@ public class LEDs extends SubsystemBase{
     }
     
     public Command INcargo(){
-        return Commands.runOnce(()->ledSpark.set(-0.97));
+        return Commands.runOnce(()->ledSpark.set(-0.97),this);
     }
     
     public Command launched(){
-        return Commands.runOnce(()->ledSpark.set(-0.97));
+        return Commands.runOnce(()->ledSpark.set(-0.97), this);
     }
     
     public Command enemyspoted(){
-        return Commands.runOnce(()->ledSpark.set(-0.97));
+        return Commands.runOnce(()->ledSpark.set(-0.97), this);
     }
 }
