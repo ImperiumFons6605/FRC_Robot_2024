@@ -1,0 +1,185 @@
+{
+  "version": 1.0,
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 1.8995614596079393,
+        "y": 7.0
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 2.197291361772451,
+        "y": 7.026501927468906
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.3679949214391995,
+        "y": 7.0
+      },
+      "prevControl": {
+        "x": 2.168910700160914,
+        "y": 7.014791090923124
+      },
+      "nextControl": {
+        "x": 2.567079142717485,
+        "y": 6.985208909076876
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 7.684714713224005,
+        "y": 7.4598028796628215
+      },
+      "prevControl": {
+        "x": 7.520763001583065,
+        "y": 6.979658581285779
+      },
+      "nextControl": {
+        "x": 7.817218733041182,
+        "y": 7.847850366270269
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 1.8995614596079393,
+        "y": 6.042791657623258
+      },
+      "prevControl": {
+        "x": 1.8966337504714932,
+        "y": 6.035548657402594
+      },
+      "nextControl": {
+        "x": 1.9024891687443855,
+        "y": 6.050034657843923
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.613922488900611,
+        "y": 5.515804013063089
+      },
+      "prevControl": {
+        "x": 2.204043209797465,
+        "y": 5.457249830334337
+      },
+      "nextControl": {
+        "x": 3.023801768003757,
+        "y": 5.5743581957918416
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 7.684714713224005,
+        "y": 5.8202857632535645
+      },
+      "prevControl": {
+        "x": 7.8293253800158595,
+        "y": 6.203986065807606
+      },
+      "nextControl": {
+        "x": 6.806401972289597,
+        "y": 3.4898292906430446
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 1.8995614596079393,
+        "y": 5.035659714686203
+      },
+      "prevControl": {
+        "x": 5.424523259887381,
+        "y": 5.012238041594641
+      },
+      "nextControl": {
+        "x": 1.722348257197797,
+        "y": 5.036837211047733
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.3679949214391995,
+        "y": 4.110503627569464
+      },
+      "prevControl": {
+        "x": 2.016669825064961,
+        "y": 4.414985377759783
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": null
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "eventMarkers": [
+    {
+      "name": "Note1",
+      "waypointRelativePos": 1.05,
+      "command": {
+        "type": "sequential",
+        "data": {
+          "commands": [
+            {
+              "type": "parallel",
+              "data": {
+                "commands": [
+                  {
+                    "type": "named",
+                    "data": {
+                      "name": "Collect"
+                    }
+                  },
+                  {
+                    "type": "named",
+                    "data": {
+                      "name": "TurnLeds"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "named",
+              "data": {
+                "name": "Shoot"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "globalConstraints": {
+    "maxVelocity": 3.0,
+    "maxAcceleration": 3.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 0,
+    "rotateFast": false
+  },
+  "reversed": false,
+  "folder": null,
+  "previewStartingState": {
+    "rotation": 0,
+    "velocity": 0
+  },
+  "useDefaultConstraints": true
+}

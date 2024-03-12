@@ -127,7 +127,7 @@ public class AlignApriltag extends Command {
             if (targetOpt.isPresent()) {
                 var target = targetOpt.get();
                 m_lastTarget = target;
-                var cameraPose = robotPose3d.transformBy(VisionConstants.kTransformRobotToCam);
+                var cameraPose = robotPose3d.transformBy(VisionConstants.kTransformRobotToShooterCam);
                 var camToTarget = target.getBestCameraToTarget();
                 var targetPose = cameraPose.transformBy(camToTarget);
                 var goalPose = targetPose.transformBy(tagGoal).toPose2d();
@@ -139,14 +139,11 @@ public class AlignApriltag extends Command {
                 xController.setGoal(goalPose.getX());
                 yController.setGoal(goalPose.getY());
                 omegaController.setGoal(goalPose.getRotation().getRadians());
-                SmartDashboard.putNumber("GoalX", goalPose.getX());
-                SmartDashboard.putNumber("GoalY", goalPose.getY());
-                SmartDashboard.putNumber("GoalTheta", goalPose.getRotation().getRadians());
             }
         }
         
         if (m_lastTarget == null) {
-            m_driveSubsystem.drive(0, 0, 0, false, false);
+            m_driveSubsystem.accepTeleopInput(0, 0, 0, false, false);
         } else {
             var xSpeed = xController.calculate(robotPose2d.getX());
             if (xController.atGoal()){
@@ -163,16 +160,13 @@ public class AlignApriltag extends Command {
                 omegaSpeed = 0;
                 isFinished[2] = true;
             }
-            m_driveSubsystem.drive(xSpeed, ySpeed, omegaSpeed, true, false);
-            SmartDashboard.putNumber("VisionSpeedX", xSpeed);
-            SmartDashboard.putNumber("VisionSpeedY", ySpeed);
-            SmartDashboard.putNumber("VisionSpeedOmega", omegaSpeed);
+            m_driveSubsystem.accepTeleopInput(xSpeed, ySpeed, omegaSpeed, true, false);
         }
     }
 
     @Override
     public void end(boolean interrupted) {
-        m_driveSubsystem.drive(0, 0, 0, false, false);
+        m_driveSubsystem.accepTeleopInput(0, 0, 0, false, false);
     } 
     @Override
     public boolean isFinished() {

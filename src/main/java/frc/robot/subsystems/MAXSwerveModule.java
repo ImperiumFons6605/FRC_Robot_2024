@@ -137,8 +137,8 @@ public class MAXSwerveModule {
   public SwerveModuleState getState() {
     // Apply chassis angular offset to the encoder position to get the position
     // relative to the chassis.
-    return new SwerveModuleState(m_drivingEncoder.getVelocity(),
-        new Rotation2d(m_turningEncoder.getPosition() - m_chassisAngularOffset));
+    return new SwerveModuleState(getDriveMetersPerSecond(),
+        new Rotation2d(getHeadingRotation2d().getRadians() - m_chassisAngularOffset));
   }
 
   /**
@@ -150,8 +150,8 @@ public class MAXSwerveModule {
     // Apply chassis angular offset to the encoder position to get the position
     // relative to the chassis.
     return new SwerveModulePosition(
-        m_drivingEncoder.getPosition(),
-        new Rotation2d(m_turningEncoder.getPosition() - m_chassisAngularOffset));
+        getDriveMeters(),
+        new Rotation2d(getHeadingRotation2d().getRadians() - m_chassisAngularOffset));
   }
 
   /**
@@ -175,12 +175,12 @@ public class MAXSwerveModule {
 
     m_desiredState = desiredState;
 
-    m_angle = (Math.abs(desiredState.speedMetersPerSecond) <= (DriveConstants.kMaxSpeedMetersPerSecond * 0.01))
+    m_angle = (Math.abs(optimizedDesiredState.speedMetersPerSecond) <= (DriveConstants.kMaxSpeedMetersPerSecond * 0.01))
         ? m_lastAngle
-        : desiredState.angle.getDegrees();
+        : optimizedDesiredState.angle.getDegrees();
 
     if (RobotBase.isSimulation()) {
-      simUpdateDrivePosition(desiredState);
+      simUpdateDrivePosition(optimizedDesiredState);
       simTurnPosition(m_angle);
       m_currentAngle = m_angle;
     }
@@ -196,7 +196,7 @@ public class MAXSwerveModule {
 
   private void simUpdateDrivePosition(SwerveModuleState state) {
     m_simDriveEncoderVelocity = state.speedMetersPerSecond;
-    double distancePer20Ms = m_simDriveEncoderVelocity / 60.0;
+    double distancePer20Ms = m_simDriveEncoderVelocity / 40.0;
 
     m_simDriveEncoderPosition += distancePer20Ms;
   }

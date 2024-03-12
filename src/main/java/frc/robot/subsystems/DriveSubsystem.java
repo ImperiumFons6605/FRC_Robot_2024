@@ -4,48 +4,53 @@
 
 package frc.robot.subsystems;
 
-import org.littletonrobotics.junction.AutoLogOutput;
-import org.littletonrobotics.junction.Logger;
+import java.util.Optional;
+import java.util.function.Supplier;
 
+import org.littletonrobotics.junction.AutoLogOutput;
 import com.ctre.phoenix6.configs.Pigeon2Configuration;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.ctre.phoenix6.unmanaged.Unmanaged;
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.pathfinding.LocalADStar;
 import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PIDConstants;
-import com.pathplanner.lib.util.PathPlannerLogging;
 import com.pathplanner.lib.util.ReplanningConfig;
-
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.util.WPIUtilJNI;
 
-import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
-import frc.robot.simulation.FieldSim;
-import frc.utils.LocalADStarAK;
+import frc.robot.simulation.FieldVisualizer;
 import frc.utils.SwerveUtils;
+import frc.utils.TunableNumber;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 
 public class DriveSubsystem extends SubsystemBase{
-  // Create MAXSwerveModules
 
-
+  public enum Mode{
+      TELEOP,
+      ALIGN_POSE,
+      CHARACTERIZATION,
+      AUTO
+  }
   
+  private DriveSubsystem.Mode currentMode = DriveSubsystem.Mode.TELEOP;
+
   private final MAXSwerveModule m_frontLeft = new MAXSwerveModule(
       DriveConstants.kFrontLeftDrivingCanId,
       DriveConstants.kFrontLeftTurningCanId,
@@ -83,21 +88,77 @@ public class DriveSubsystem extends SubsystemBase{
   // Odometry class for tracking robot pose
   SwerveDrivePoseEstimator m_poseEstimator;
 
-  private final FieldSim m_field = new FieldSim(this);
-  private final Field2d field = new Field2d();
+  private final FieldVisualizer m_field = new FieldVisualizer(this);
+
+  private boolean overrideHeading = false;
+  private Rotation2d headingTarget = new Rotation2d();
+
+  private TunableNumber headingkP = new TunableNumber("DriveSubsystem/HeadingkP", DriveConstants.headingkP);
+  private TunableNumber headingkI = new TunableNumber("DriveSubsystem/HeadingkI", DriveConstants.headingkI);
+  private TunableNumber headingkD = new TunableNumber("DriveSubsystem/HeadingkD", DriveConstants.headingkD);
+  private TunableNumber headingkMaxVel = new TunableNumber("DriveSubsystem/HeadingkMaxVel", DriveConstants.headingkMaxVelRadPerSec);
+  private TunableNumber headingkMaxAccel = new TunableNumber("DriveSubsystem/HeadingkMaxAccel", DriveConstants.headingkAccelRadPerSecSquared);
+
+  private TunableNumber translationkP = new TunableNumber("DriveSubsystem/TranslationkP", DriveConstants.TranslationkP);
+  private TunableNumber translationkI = new TunableNumber("DriveSubsystem/TranslationkP", DriveConstants.translationkI);
+  private TunableNumber translationkD = new TunableNumber("DriveSubsystem/TranslationkP", DriveConstants.translationkD);
+  private TunableNumber translationkMaxVel = new TunableNumber("DriveSubsystem/TranslationkMaxVel", DriveConstants.headingkMaxVelRadPerSec);
+  private TunableNumber translationMaxAccel = new TunableNumber("DriveSubsystem/TranslationkMaxAccel", DriveConstants.headingkAccelRadPerSecSquared);
+
+  private double xSpeeds = 0.0;
+  private double ySpeeds = 0.0;
+  private double omegaSpeeds = 0.0;
+
+  private ChassisSpeeds desiredSpeeds = new ChassisSpeeds();
+
+  private ProfiledPIDController headingController = new ProfiledPIDController(
+    headingkP.getAsDouble(),
+    headingkI.getAsDouble(),
+    headingkD.getAsDouble(),
+    new TrapezoidProfile.Constraints(
+      headingkMaxVel.getAsDouble(),
+      headingkMaxAccel.getAsDouble())
+  );
+  private void setHeadingPID(double p, double i, double d){
+    headingController.setP(p);
+    headingController.setI(i);
+    headingController.setD(d);
+  }
+  private void setHeadingConstraint(double maxVel, double maxAccel){
+    headingController.setConstraints(
+      new TrapezoidProfile.Constraints(
+        maxVel, 
+        maxAccel));
+  }
+
+  private PIDController xController = new PIDController(
+    translationkP.getAsDouble(), 
+    translationkI.getAsDouble(),
+    translationkD.getAsDouble()
+  );
+
+  private PIDController yController = new PIDController(
+    translationkP.getAsDouble(), 
+    translationkI.getAsDouble(),
+    translationkD.getAsDouble()
+  );
+
+  private void setTranslationPID(double p, double i, double d){
+    xController.setP(p);
+    xController.setI(i);
+    xController.setD(d);
+    yController.setP(p);
+    yController.setI(i);
+    yController.setD(d);
+  }
 
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
     
-      
-  
-    // All other subsystem initialization
-    // ...
-
     // Configure AutoBuilder last
     AutoBuilder.configureHolonomic(
             this::getPose, // Robot pose supplier
-            this::resetOdometry, // Method to reset odometry (will be called if your auto has a starting pose)
+            this::resetOdometryTraj, // Method to reset odometry (will be called if your auto has a starting pose)
             this::getRobotSpeeds, // ChassisSpeeds supplier. MUST BE ROBOT RELATIVE
             this::driveRobotRelative, // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds
             new HolonomicPathFollowerConfig( // HolonomicPathFollowerConfig, this should likely live in your Constants class
@@ -121,36 +182,9 @@ public class DriveSubsystem extends SubsystemBase{
             this // Reference to this subsystem to set requirements
     );
 
-    Pathfinding.setPathfinder(new LocalADStarAK());
-    PathPlannerLogging.setLogActivePathCallback(
-        (activePath) -> {
-          Logger.recordOutput(
-              "Odometry/Trajectory", activePath.toArray(new Pose2d[activePath.size()]));
-        });
-    PathPlannerLogging.setLogTargetPoseCallback(
-        (targetPose) -> {
-          Logger.recordOutput("Odometry/TrajectorySetpoint", targetPose);
-        });
 
-        SmartDashboard.putData("Field", field);
+    Pathfinding.setPathfinder(new LocalADStar());
 
-        // Logging callback for current robot pose
-        PathPlannerLogging.setLogCurrentPoseCallback((pose) -> {
-            // Do whatever you want with the pose here
-            field.setRobotPose(pose);
-        });
-
-        // Logging callback for target robot pose
-        PathPlannerLogging.setLogTargetPoseCallback((pose) -> {
-            // Do whatever you want with the pose here
-            field.getObject("target pose").setPose(pose);
-        });
-
-        // Logging callback for the active path, this is sent as a list of poses
-        PathPlannerLogging.setLogActivePathCallback((poses) -> {
-            // Do whatever you want with the poses here
-            field.getObject("path").setPoses(poses);
-        });
     pigeon = new Pigeon2(DriveConstants.kPigeonGyroID);
 
     /* Configure Pigeon2 */
@@ -167,7 +201,7 @@ public class DriveSubsystem extends SubsystemBase{
 
     m_poseEstimator = new SwerveDrivePoseEstimator(
       DriveConstants.kDriveKinematics,
-      getHeadingRotation2d(),
+      new Rotation2d(),
       new SwerveModulePosition[] {
           m_frontLeft.getPosition(),
           m_frontRight.getPosition(),
@@ -178,17 +212,15 @@ public class DriveSubsystem extends SubsystemBase{
 
       pigeon.reset();
 
+      headingController.enableContinuousInput(-Math.PI, Math.PI);
+
       //Logger.recordOutput("MyStates", getModuleStates());
       //Logger.recordOutput("MyPose2D", getPose());
   }
 
   @Override
   public void periodic() {
-    // Log empty setpoint states when disabled
-    if (DriverStation.isDisabled()) {
-      Logger.recordOutput("SwerveStates/Setpoints", new SwerveModuleState[] {});
-      Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
-    }
+
     // Update the odometry in the periodic block
     m_poseEstimator.update(
         getHeadingRotation2d(),
@@ -201,51 +233,78 @@ public class DriveSubsystem extends SubsystemBase{
 
     sendTelemetry();
 
+    TunableNumber.ifChanged(
+      hashCode(),
+      headingPid -> {
+        setHeadingPID(
+        headingPid[0],
+        headingPid[1],
+        headingPid[2]);
+      }, 
+      headingkP,
+      headingkI,
+      headingkD);
+
+    TunableNumber.ifChanged(
+      hashCode(),
+      headingContraints -> {
+        setHeadingConstraint(
+        headingContraints[0],
+        headingContraints[1]);
+      }, 
+      headingkMaxVel,
+      headingkMaxAccel);
+    
+    TunableNumber.ifChanged(
+      hashCode(),
+      translationPid -> {
+        setTranslationPID(
+        translationPid[0],
+        translationPid[1],
+        translationPid[2]);
+      }, 
+      translationkP,
+      translationkI,
+      translationkD);
+
+    switch (currentMode) {
+      case TELEOP -> {
+        if(overrideHeading){
+          double omega = headingController.calculate(getPose().getRotation().getRadians());
+          if(Math.abs(omega) < 0.1){
+            omega = 0.0;
+          }
+          desiredSpeeds.omegaRadiansPerSecond = omega;
+        }
+      }
+      case ALIGN_POSE -> {
+
+      }
+      case CHARACTERIZATION -> {
+
+      }
+      default -> {}
+      
+    }
+
+    if(currentMode != DriveSubsystem.Mode.AUTO || currentMode != DriveSubsystem.Mode.CHARACTERIZATION){
+      SwerveModuleState[] swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(desiredSpeeds);
+      SwerveDriveKinematics.desaturateWheelSpeeds(
+          swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
+      int i = 0;
+      for(SwerveModuleState module: swerveModuleStates){
+        i++;
+      }
+      m_frontLeft.setDesiredState(swerveModuleStates[0]);
+      m_frontRight.setDesiredState(swerveModuleStates[1]);
+      m_rearLeft.setDesiredState(swerveModuleStates[2]);
+      m_rearRight.setDesiredState(swerveModuleStates[3]);
+    }
+
+    
   }
 
-  /**
-   * Resets the odometry to the specified pose.
-   *
-   * @param pose The pose to which to set the odometry.
-   */
-  public void resetOdometry(Pose2d pose) {
-    m_poseEstimator.resetPosition(
-        getHeadingRotation2d(),
-        new SwerveModulePosition[] {
-            m_frontLeft.getPosition(),
-            m_frontRight.getPosition(),
-            m_rearLeft.getPosition(),
-            m_rearRight.getPosition()
-        },
-        pose);
-  }
-
-   /**
-   * Returns the currently-estimated pose of the robot.
-   *
-   * @return The pose.
-   */
-  @AutoLogOutput(key = "Odometry/Robot")
-  public Pose2d getPose() {
-    return m_poseEstimator.getEstimatedPosition();
-  }
-
-  public void setPose(Pose2d pose) {
-    m_poseEstimator.resetPosition(getHeadingRotation2d(), getModulePositions(), pose);
-  }
-
-  /**
-   * Adds a vision measurement to the pose estimator.
-   *
-   * @param visionPose The pose of the robot as measured by the vision camera.
-   * @param timestamp The timestamp of the vision measurement in seconds.
-   */
-  public void addVisionMeasurement(Pose2d visionPose, double timestamp) {
-    field.getObject("VisionRobotPose").setPose(visionPose);
-    m_poseEstimator.addVisionMeasurement(visionPose, timestamp);
-  }
-
-
+  
   /**
    * Method to drive the robot using joystick info.
    *
@@ -256,7 +315,8 @@ public class DriveSubsystem extends SubsystemBase{
    *                      field.
    * @param rateLimit     Whether to enable rate limiting for smoother control.
    */
-  public void drive (double xSpeed, double ySpeed, double rot, boolean fieldRelative, boolean rateLimit) {
+  public void accepTeleopInput(double xSpeed, double ySpeed, double rot, boolean fieldRelative, boolean rateLimit) {
+    currentMode = Mode.TELEOP;
     
     double xSpeedCommanded;
     double ySpeedCommanded;
@@ -314,16 +374,94 @@ public class DriveSubsystem extends SubsystemBase{
     double ySpeedDelivered = ySpeedCommanded * DriveConstants.kMaxSpeedMetersPerSecond;
     double rotDelivered = m_currentRotation * DriveConstants.kMaxAngularSpeed;
 
-    SwerveModuleState[] swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(
+    desiredSpeeds = 
         fieldRelative
-            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, getHeadingRotation2d())
-            : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered));
-    SwerveDriveKinematics.desaturateWheelSpeeds(
-        swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
-    m_frontLeft.setDesiredState(swerveModuleStates[0]);
-    m_frontRight.setDesiredState(swerveModuleStates[1]);
-    m_rearLeft.setDesiredState(swerveModuleStates[2]);
-    m_rearRight.setDesiredState(swerveModuleStates[3]);
+            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, getPose().getRotation())
+            : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered);
+  }
+
+  /**
+   * Resets the odometry to the specified pose.
+   *
+   * @param pose The pose to which to set the odometry.
+   */
+
+  public void resetOdometryTraj(Pose2d pose) {
+    m_poseEstimator.resetPosition(
+        getHeadingRotation2d(),
+        getModulePositions(),
+        pose);
+  }
+
+  public void resetOdometry(Pose2d pose) {
+    m_poseEstimator.resetPosition(
+        getHeadingRotation2d(),
+        getModulePositions(),
+        pose);
+  
+  }
+
+   /**
+   * Returns the currently-estimated pose of the robot.
+   *
+   * @return The pose.
+   */
+  @AutoLogOutput(key = "Odometry/Robot")
+  public Pose2d getPose() {
+    return m_poseEstimator.getEstimatedPosition();
+  }
+  /**
+   * Adds a vision measurement to the pose estimator.
+   *
+   * @param visionPose The pose of the robot as measured by the vision camera.
+   * @param timestamp The timestamp of the vision measurement in seconds.
+   */
+  public void addVisionMeasurement(String tag, Pose2d visionPose, double timestamp) {
+    m_field.GetField().getObject(tag + " VisionRobotPose").setPose(visionPose);
+    m_poseEstimator.addVisionMeasurement(visionPose, timestamp);
+  }
+
+  public Optional<Rotation2d> getTargetHeading(){
+    if(overrideHeading){
+      return Optional.of(headingTarget);
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  public void setOverrideHeading(boolean override){
+    overrideHeading = override;
+    headingController.reset(getPose().getRotation().getRadians());
+  }
+
+  public void setTargetHeading(Rotation2d heading){
+    headingTarget = heading;
+    headingController.setGoal(heading.getRadians());
+  }
+
+  //TODO Add pose ALign 
+  public void setAutoAlignGoal(Supplier<Pose2d> poseSupplier, boolean slowMode){
+    if(DriverStation.isTeleopEnabled()){
+      currentMode = DriveSubsystem.Mode.ALIGN_POSE;
+      
+    }
+  }
+
+  /** Zeroes the heading of the robot. */
+  public void zeroHeading() {
+    pigeon.reset();
+  }
+
+  public Rotation2d getHeadingRotation2d() {
+    return pigeon.getRotation2d();
+  }
+  /**
+   * Returns the turn rate of the robot.
+   *
+   * @return The turn rate of the robot, in degrees per second
+   */
+  public double getTurnRate() {
+    return pigeon.getRate() * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
   }
 
   /**
@@ -337,9 +475,13 @@ public class DriveSubsystem extends SubsystemBase{
   }
 
   public void driveRobotRelative(ChassisSpeeds speeds){
-    drive(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond, false, false);
+    accepTeleopInput(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond, speeds.omegaRadiansPerSecond, false, false);
   }
 
+  /**
+   * 
+   * @return Robot Relative Chassis Speeds
+   */
   public ChassisSpeeds getRobotSpeeds(){
     return DriveConstants.kDriveKinematics.toChassisSpeeds(getModuleStates());
   }
@@ -388,34 +530,6 @@ public class DriveSubsystem extends SubsystemBase{
     m_rearRight.resetEncoders();
   }
 
-  /** Zeroes the heading of the robot. */
-  public void zeroHeading() {
-    pigeon.reset();
-  }
-
-  /**
-   * Returns the heading of the robot.
-   *
-   * @return the robot's heading in degrees, from -180 to 180
-   */
-  public double getHeadingDegrees() {
-    return Math.IEEEremainder(pigeon.getYaw().asSupplier().get(), 360) ;
-    //return pigeon.getRotation2d().getDegrees();
-  }
-
-  public Rotation2d getHeadingRotation2d() {
-    return new Rotation2d(Units.degreesToRadians(getHeadingDegrees()));
-  }
-
-  /**
-   * Returns the turn rate of the robot.
-   *
-   * @return The turn rate of the robot, in degrees per second
-   */
-  public double getTurnRate() {
-    return pigeon.getRate() * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
-  }
-
 
 
   public MAXSwerveModule[] getModules() {
@@ -425,33 +539,26 @@ public class DriveSubsystem extends SubsystemBase{
   @Override
   public void simulationPeriodic() {
 
-    m_field.periodic();
+    m_field.updateRobotPoses();
 
     double m_simYaw = getRobotSpeeds().omegaRadiansPerSecond * 0.02;
 
     Unmanaged.feedEnable(20);
-    pigeon.getSimState().setRawYaw (Units.radiansToDegrees(m_simYaw));
+    pigeon.getSimState().addYaw(Units.radiansToDegrees(m_simYaw));
+
   }
 
   public void sendTelemetry(){
       SmartDashboard.putData(pigeon);
-      SmartDashboard.putNumber("pigeonAngle", getHeadingRotation2d().getDegrees());
       int i = 0;
       for(MAXSwerveModule module: SwerveModules){
-
-        SmartDashboard.putNumber("angle " + i, module.getPosition().angle.getDegrees());
-        SmartDashboard.putNumber("pos " + i, module.getPosition().distanceMeters);
         i++;
       }
 
-      SmartDashboard.putNumber("PoseX", getPose().getX());
-      SmartDashboard.putNumber("PoseY", getPose().getY());
-      SmartDashboard.putNumber("PoseTheta", getPose().getRotation().getDegrees());
-
-      field.setRobotPose(getPose());
-      SmartDashboard.putData(field);
+    m_field.updateRobotPoses();
     
   }
+
 
 
   
